@@ -1,6 +1,9 @@
 import os
 import numpy as np
+import face_recognition
+import pickle
 from cv2 import cv2
+from imutils import paths
 
 def load_images_from_folder(folder):
     images = []
@@ -25,7 +28,7 @@ def face_recognition_from_image(image, image_number, net):
             (startX, startY, endX, endY) = box.astype("int")
 
             if startX <= w or startY <= h:
-                cv2.imwrite(os.path.join(save_path , 'image' + str(image_number) + '_face' + str(i) + '.jpg'), image[startY:endY, startX:endX])
+                cv2.imwrite(os.path.join(faces_path , 'image' + str(image_number) + '_face' + str(i) + '.jpg'), image[startY:endY, startX:endX])
                 # text = "{:.2f}%".format(confidence * 100)
                 # y = startY - 10 if startY - 10 > 10 else startY + 10
                 # cv2.rectangle(image, (startX, startY), (endX, endY), (0, 0, 255), 2)
@@ -37,8 +40,29 @@ def face_recognition_from_image(image, image_number, net):
 net = cv2.dnn.readNetFromCaffe("deploy.prototxt.txt", "res10_300x300_ssd_iter_140000.caffemodel")
 
 dataset_path = os.path.realpath(os.getcwd() + '/dataset')
-save_path = os.path.realpath(os.getcwd() + '/faces')
+faces_path = os.path.realpath(os.getcwd() + '/faces')
 images = load_images_from_folder(dataset_path)
 
 for i in range(len(images)):
     face_recognition_from_image(images[i][0], i, net)
+
+image_paths = list(paths.list_images(faces_path))
+data = []
+
+for i in range(len(image_paths)):
+    print("Processing image {}/{}".format(i + 1, len(image_paths)))
+    print(image_paths[i])
+    image = cv2.imread(image_paths[i])
+    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+    
+    boxes = face_recognition.face_locations(rgb, 1, 'hog')
+    
+    encodings = face_recognition.face_encodings(rgb, boxes)
+
+    d = [{"image_path": image_paths[i], "loc": box, "encoding": enc} for (box, enc) in zip(boxes, encodings)]
+    data.extend(d)
+
+print("Serializing encodings")
+f = open("encodings.pickle", "wb")
+f.write(pickle.dumps(data))
+f.close()
