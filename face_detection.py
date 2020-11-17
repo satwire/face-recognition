@@ -37,6 +37,22 @@ def face_recognition_from_image(image, image_number, net):
     # cv2.imshow("Display window", image)
     # cv2.waitKey(0)
 
+def face_processing_from_images(image_paths):
+    data = []   
+    for i in range(len(image_paths)):
+        print("Processing image {}/{}".format(i + 1, len(image_paths)))
+        print(image_paths[i])
+        image = cv2.imread(image_paths[i])
+        rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+        
+        boxes = face_recognition.face_locations(rgb, 1, 'hog')
+        
+        encodings = face_recognition.face_encodings(rgb, boxes)
+
+        d = [{"image_path": image_paths[i], "loc": box, "encoding": enc} for (box, enc) in zip(boxes, encodings)]
+        data.extend(d)    
+    return data
+
 net = cv2.dnn.readNetFromCaffe("deploy.prototxt.txt", "res10_300x300_ssd_iter_140000.caffemodel")
 
 dataset_path = os.path.realpath(os.getcwd() + '/dataset')
@@ -47,20 +63,7 @@ for i in range(len(images)):
     face_recognition_from_image(images[i][0], i, net)
 
 image_paths = list(paths.list_images(faces_path))
-data = []
-
-for i in range(len(image_paths)):
-    print("Processing image {}/{}".format(i + 1, len(image_paths)))
-    print(image_paths[i])
-    image = cv2.imread(image_paths[i])
-    rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    
-    boxes = face_recognition.face_locations(rgb, 1, 'hog')
-    
-    encodings = face_recognition.face_encodings(rgb, boxes)
-
-    d = [{"image_path": image_paths[i], "loc": box, "encoding": enc} for (box, enc) in zip(boxes, encodings)]
-    data.extend(d)
+data = face_processing_from_images(image_paths)
 
 print("Serializing encodings")
 f = open("encodings.pickle", "wb")
